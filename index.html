@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SolMed Recorder</title>
+<style>
+  body {
+    margin: 0;
+    padding: 24px;
+    background: #f4f8ff;
+    font-family: Arial, sans-serif;
+    color: #183153;
+  }
+  .card {
+    max-width: 440px;
+    margin: 40px auto;
+    background: white;
+    padding: 30px 24px;
+    border-radius: 24px;
+    box-shadow: 0 8px 30px #174c8a18;
+    text-align: center;
+  }
+  h1 { color: #1769d2; font-size: 28px; }
+  p { line-height: 1.6; }
+  .mic { font-size: 65px; margin: 20px; }
+  button {
+    width: 100%;
+    padding: 18px;
+    margin: 8px 0;
+    border: none;
+    border-radius: 12px;
+    font-size: 19px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .start { background: #1769d2; color: white; }
+  .stop { background: #e64e57; color: white; }
+  button:disabled { opacity: .4; cursor: default; }
+  #status { font-weight: bold; margin: 20px 0; }
+  audio { width: 100%; margin-top: 20px; }
+  a { display: block; margin-top: 15px; color: #1769d2; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>SolMed</h1>
+  <h2>Medical Appointment Recorder</h2>
+  <div class="mic">🎙️</div>
+  <p>Record your doctor's instructions and review them anytime.</p>
+
+  <button class="start" id="start">Start Recording</button>
+  <button class="stop" id="stop" disabled>Stop Recording</button>
+
+  <p id="status">Ready to record</p>
+  <audio id="player" controls hidden></audio>
+  <a id="download" hidden>Download Recording</a>
+</div>
+
+<script>
+let recorder, stream, chunks = [];
+let audioURL;
+
+const start = document.getElementById("start");
+const stop = document.getElementById("stop");
+const status = document.getElementById("status");
+const player = document.getElementById("player");
+const download = document.getElementById("download");
+
+start.onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: true
+    });
+
+    chunks = [];
+    recorder = new MediaRecorder(stream);
+
+    recorder.ondataavailable = e => {
+      if (e.data.size) chunks.push(e.data);
+    };
+
+    recorder.onstop = () => {
+      const blob = new Blob(chunks, {
+        type: recorder.mimeType
+      });
+
+      if (audioURL) URL.revokeObjectURL(audioURL);
+      audioURL = URL.createObjectURL(blob);
+
+      player.src = audioURL;
+      player.hidden = false;
+
+      download.href = audioURL;
+      download.download = "SolMed_Appointment." +
+        (recorder.mimeType.includes("mp4") ? "mp4" : "webm");
+      download.hidden = false;
+      download.textContent = "Download Recording";
+
+      status.textContent = "Recording completed!";
+      start.disabled = false;
+    };
+
+    recorder.start();
+    start.disabled = true;
+    stop.disabled = false;
+    player.hidden = true;
+    download.hidden = true;
+    status.textContent = "Recording in progress...";
+  } catch (err) {
+    status.textContent = "Microphone error: " + err.message;
+  }
+};
+
+stop.onclick = () => {
+  stop.disabled = true;
+  recorder.stop();
+  stream.getTracks().forEach(track => track.stop());
+  status.textContent = "Processing recording...";
+};
+</script>
+</body>
+</html>
